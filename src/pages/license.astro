@@ -1,0 +1,208 @@
+---
+import Header from '../components/Header.astro';
+import Layout from '../layouts/Layout.astro';
+import { supabase } from "../lib/supabase";
+
+const accessToken = Astro.cookies.get("sb-access-token");
+const refreshToken = Astro.cookies.get("sb-refresh-token");
+
+const logoutAndRedirect = () => {
+  Astro.cookies.delete("sb-access-token", { path: "/" });
+  Astro.cookies.delete("sb-refresh-token", { path: "/" });
+  return Astro.redirect("/");
+};
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/");
+}
+
+let session;
+try {
+    const { data, error } = await supabase.auth.setSession({
+        refresh_token: refreshToken.value,
+        access_token: accessToken.value,
+    });
+    if (error) {
+        throw error;
+    }
+	session = data.session;
+
+} catch (error) {
+    return logoutAndRedirect();
+}
+
+const email = session?.user?.email || '';
+
+const response = await fetch('http://localhost:4321/api/licenses/request-fingerprint');
+const data = await response.json();
+const fingerprint = data.fingerprint;
+
+---
+
+<Layout>
+
+	<div class="container">
+		<Header email={email}/>
+
+		<div class="content">
+			<div class="license-form">
+				<h2 class="text-center">Generar Nueva Licencia</h2>
+				<form id="licenseForm">
+					<div class="form-group">
+						<label for="productname">ID del Producto:</label>
+						<input type="text" id="productname" name="productname" maxlength="30" minlength="5" required placeholder="ej: MyApp-Pro-v1.0">
+					</div>
+					
+					<div class="form-group">
+						<label for="durationDays">Duración (días):</label>
+						<select id="durationDays" name="durationDays">
+							<option value="1">30 días</option>
+							<option value="3">90 días</option>
+							<option value="12" selected>1 año</option>
+						</select>
+					</div>
+					<h3 class="text-center">Información Esencial</h3>
+					<div class="form-group">
+						<label for="fingerprint">Huella Digital:</label>
+						<input type="text" id="fingerprint" name="fingerprint" readonly value={fingerprint}></input>
+					</div>
+					<div class="form-group">
+						<label for="email">Email de contacto:</label>
+						<input type="email" id="email" name="email" disabled value={email}></input>
+					</div>
+					
+					<button type="submit" class="generate-btn">Generar Licencia</button>
+				</form>
+			</div>
+		</div>
+	</div>
+	
+</Layout>
+
+<style>
+		.container {
+			max-width: 800px;
+			margin: 0 auto;
+			padding: 20px;
+			font-family: Arial, sans-serif;
+		}
+
+		.content {
+			display: grid;
+			gap: 30px;
+		}
+
+		.license-form, .license-result {
+			background: #f8f9fa;
+			padding: 20px;
+			border-radius: 8px;
+			border: 1px solid #dee2e6;
+		}
+
+		.fingerprint {
+			background: #e9ecef;
+			padding: 10px;
+			border-radius: 4px;
+			font-family: monospace;
+			word-break: break-all;
+			font-size: 12px;
+		}
+
+		.form-group {
+			margin-bottom: 15px;
+		}
+
+		.form-group label {
+			display: block;
+			margin-bottom: 5px;
+			font-weight: bold;
+			color: #333;
+		}
+
+		.form-group input, .form-group select {
+			width: 100%;
+			padding: 8px 12px;
+			border: 1px solid #ced4da;
+			border-radius: 4px;
+			font-size: 14px;
+		}
+
+		.generate-btn, .download-btn {
+			background-color: #007bff;
+			color: white;
+			border: none;
+			padding: 12px 24px;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 16px;
+			width: 100%;
+		}
+
+		.generate-btn:hover, .download-btn:hover {
+			background-color: #0056b3;
+		}
+
+		.license-result {
+			background-color: #d4edda;
+			border-color: #c3e6cb;
+		}
+
+		#licenseInfo {
+			background: white;
+			padding: 15px;
+			border-radius: 4px;
+			margin-bottom: 15px;
+			font-family: monospace;
+			font-size: 12px;
+			white-space: pre-wrap;
+			max-height: 300px;
+			overflow-y: auto;
+		}
+
+		.loading {
+			opacity: 0.6;
+			pointer-events: none;
+		}
+</style>
+
+<script>
+	const licenseForm = document.getElementById('licenseForm') as HTMLFormElement;
+
+	if(licenseForm){
+
+		licenseForm.addEventListener('submit', async (e) => {
+			e.preventDefault();
+
+			const formData = new FormData(licenseForm);
+			
+			let complete = true
+
+            for (const [name, value] of formData.entries()) {
+                if (value.toString().trim() === '') {
+                    complete = false
+                    alert(`Por favor, rellena todos los campos`);
+                    return;
+                }
+            }
+
+			if(complete){
+                try {
+                    const response = await fetch('/api/form/save-data', {
+                        method: 'POST',
+                         body: formData,
+                    });
+                    if (response.ok) {
+                        alert('Guardado con exito')
+                        window.location.href = '/result';
+                    } else {
+                        alert('Error Datos incorrectos')
+                    }
+                } catch (error) {
+                    alert('Error al guardar')
+                }
+            }
+
+			
+		});
+	}
+</script>

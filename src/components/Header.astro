@@ -1,0 +1,44 @@
+---
+interface Props {
+  email: string;
+  class?: string;
+  [x: string]: any;
+}
+
+const { email, class: className, ...rest } = Astro.props;
+
+---
+
+<header class="header">
+	<h1>Generador de Licencias</h1>
+	<p>Usuario: {email}</p>
+    <a href="/api/auth/signout" class="logout-btn">Cerrar Sesión</a>
+</header>
+
+<style>
+    .header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 30px;
+		padding-bottom: 20px;
+		border-bottom: 2px solid #e0e0e0;
+	}
+
+	.header h1 {
+		color: #333;
+		margin: 0;
+	}
+    .logout-btn {
+		background-color: #dc3545;
+		color: white;
+		border: none;
+		padding: 8px 16px;
+		border-radius: 4px;
+		cursor: pointer;
+	}
+
+	.logout-btn:hover {
+		background-color: #c82333;
+	}
+</style>
